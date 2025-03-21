@@ -1,0 +1,114 @@
+name: Deploy News Website
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    name: Deploy Website
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build website
+        run: npm run build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+
+  spell-check:
+    name: Spell Check Articles
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run spell check
+        uses: rojopolis/spellcheck-github-actions@0.36.0
+        with:
+          config_path: .spellcheck.yml
+          source_files: "articles/**/*.md"
+
+  validate-html:
+    name: Validate HTML Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install HTML Validator
+        run: npm install -g html-validate
+
+      - name: Run HTML validation
+        run: html-validate "public/**/*.html"
+
+  seo-check:
+    name: SEO Optimization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Lighthouse CLI
+        run: npm install -g lighthouse
+
+      - name: Run SEO Audit
+        run: lighthouse https://your-username.github.io/my-website/ --only-categories=seo --output=json --output-path=./seo-report.json
+
+      - name: Upload SEO Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: SEO Report
+          path: ./seo-report.json
+
+  social-share:
+    name: Auto Share on Twitter & LinkedIn
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Share on Twitter
+        run: |
+          curl -X POST "https://api.twitter.com/2/tweets" \
+          -H "Authorization: Bearer ${{ secrets.TWITTER_BEARER_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          -d '{"text": "New article published! Check it out: https://your-username.github.io/my-website/"}'
+
+      - name: Share on LinkedIn
+        run: |
+          curl -X POST "https://api.linkedin.com/v2/ugcPosts" \
+          -H "Authorization: Bearer ${{ secrets.LINKEDIN_ACCESS_TOKEN }}" \
+          -H "X-Restli-Protocol-Version: 2.0.0" \
+          -H "Content-Type: application/json" \
+          -d '{
+                "author": "urn:li:person:YOUR_LINKEDIN_ID",
+                "lifecycleState": "PUBLISHED",
+                "specificContent": {
+                  "com.linkedin.ugc.ShareContent": {
+                    "shareCommentary": {
+                      "text": "Check out our latest news article! #news #journalism"
+                    },
+                    "shareMediaCategory": "NONE"
+                  }
+                },
+                "visibility": {
+                  "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+                }
+              }'
